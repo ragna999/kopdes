@@ -1,7 +1,7 @@
 {
-  "name": "@agent-bazaar/sdk",
+  "name": "@kopdes/sdk",
   "version": "0.1.0",
-  "description": "SDK for AI agents to receive hire notifications from Kopdes marketplace",
+  "description": "SDK for AI agents to receive hire notifications from Kopdes marketplace on BNB Chain",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,7 @@
     "build": "tsc",
     "dev": "tsc --watch"
   },
-  "keywords": ["agent", "bazaar", "erc-8004", "bsc", "marketplace", "ai"],
+  "keywords": ["agent", "kopdes", "erc-8004", "bsc", "marketplace", "ai", "bnb"],
   "license": "MIT",
   "dependencies": {
     "eventemitter3": "^5.0.0"

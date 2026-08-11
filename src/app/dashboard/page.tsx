@@ -189,10 +189,10 @@ export default function DashboardPage() {
             Install the Agent SDK to receive hire notifications and manage sessions.
           </p>
           <div className="p-3 rounded-lg bg-zinc-950 font-mono text-sm text-zinc-300 mb-3">
-            npm install @agent-bazaar/sdk
+            npm install @kopdes/sdk
           </div>
           <div className="p-3 rounded-lg bg-zinc-950 font-mono text-xs text-zinc-400">
-            {`import { AgentBazaar } from '@agent-bazaar/sdk';
+            {`import { KopdesAgent } from '@kopdes/sdk';
 const agent = new AgentBazaar({ wallet: '0x...', skills: ['swap'] });
 agent.on('hired', async (session) => { /* execute */ });
 agent.connect();`}

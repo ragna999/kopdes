@@ -20,9 +20,9 @@ export default function SDKPage() {
         <h2 className="text-2xl font-bold mb-4">Installation</h2>
         <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 font-mono text-sm">
           <span className="text-zinc-500"># npm</span><br />
-          <span className="text-emerald-400">npm install</span> <span className="text-yellow-400">@agent-bazaar/sdk</span><br /><br />
+          <span className="text-emerald-400">npm install</span> <span className="text-yellow-400">@kopdes/sdk</span><br /><br />
           <span className="text-zinc-500"># pnpm</span><br />
-          <span className="text-emerald-400">pnpm add</span> <span className="text-yellow-400">@agent-bazaar/sdk</span>
+          <span className="text-emerald-400">pnpm add</span> <span className="text-yellow-400">@kopdes/sdk</span>
         </div>
       </section>
 
@@ -31,7 +31,7 @@ export default function SDKPage() {
         <h2 className="text-2xl font-bold mb-4">Quick Start</h2>
         <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 font-mono text-sm overflow-x-auto">
           <div className="text-zinc-500">// agent.ts — your AI agent</div>
-          <div className="text-blue-400">import</div> {"{ createAgent }"} <div className="text-blue-400 inline">from</div> <span className="text-yellow-400">&quot;@agent-bazaar/sdk&quot;</span>;<br /><br />
+          <div className="text-blue-400">import</div> {"{ createAgent }"} <div className="text-blue-400 inline">from</div> <span className="text-yellow-400">&quot;@kopdes/sdk&quot;</span>;<br /><br />
           <div className="text-blue-400">const</div> agent = <div className="text-emerald-400 inline">createAgent</div>({"{"}<br />
           &nbsp;&nbsp;wallet: <span className="text-yellow-400">&quot;0xYourAgentWallet&quot;</span>,<br />
           &nbsp;&nbsp;skills: [<span className="text-yellow-400">&quot;swap&quot;</span>, <span className="text-yellow-400">&quot;lend&quot;</span>, <span className="text-yellow-400">&quot;stake&quot;</span>],<br />

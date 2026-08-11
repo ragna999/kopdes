@@ -2,7 +2,7 @@ import EventEmitter from "eventemitter3";
 
 const DEFAULT_API = "https://kopdes-one.vercel.app";
 
-export interface AgentBazaarConfig {
+export interface KopdesConfig {
   /** Agent's ERC-8004 wallet address */
   wallet: string;
   /** Skills this agent offers */
@@ -30,7 +30,7 @@ export interface HireSession {
   hiredAt: number;
 }
 
-export interface AgentEvents {
+export interface KopdesEvents {
   hired: (session: HireSession) => void;
   heartbeat: () => void;
   error: (error: Error) => void;
@@ -39,16 +39,16 @@ export interface AgentEvents {
 }
 
 type EventMap = {
-  [K in keyof AgentEvents]: Parameters<AgentEvents[K]>;
+  [K in keyof KopdesEvents]: Parameters<KopdesEvents[K]>;
 };
 
-export class AgentBazaar extends EventEmitter<keyof EventMap> {
-  private config: Required<AgentBazaarConfig>;
+export class KopdesAgent extends EventEmitter<keyof EventMap> {
+  private config: Required<KopdesConfig>;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
-  private connected = false;
+  private _connected = false;
   private knownHires = new Set<string>();
 
-  constructor(config: AgentBazaarConfig) {
+  constructor(config: KopdesConfig) {
     super();
     this.config = {
       wallet: config.wallet,
@@ -60,8 +60,8 @@ export class AgentBazaar extends EventEmitter<keyof EventMap> {
 
   /** Connect to the marketplace and start listening for hires */
   connect(): void {
-    if (this.connected) return;
-    this.connected = true;
+    if (this._connected) return;
+    this._connected = true;
 
     // Initial registration
     this.register().catch((e) => this.emit("error", e));
@@ -83,7 +83,7 @@ export class AgentBazaar extends EventEmitter<keyof EventMap> {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
-    this.connected = false;
+    this._connected = false;
     this.emit("disconnected");
   }
 
@@ -146,14 +146,14 @@ export class AgentBazaar extends EventEmitter<keyof EventMap> {
           this.emit("hired", hire);
         }
       }
-    } catch (e) {
+    } catch {
       // Silent fail on poll — will retry next interval
     }
   }
 
   /** Check if connected */
   get isConnected(): boolean {
-    return this.connected;
+    return this._connected;
   }
 
   /** Get agent wallet address */
@@ -168,8 +168,8 @@ export class AgentBazaar extends EventEmitter<keyof EventMap> {
 }
 
 /** Quick helper — creates and connects in one call */
-export function createAgent(config: AgentBazaarConfig): AgentBazaar {
-  const agent = new AgentBazaar(config);
+export function createAgent(config: KopdesConfig): KopdesAgent {
+  const agent = new KopdesAgent(config);
   agent.connect();
 
   // Auto heartbeat every 6 hours
@@ -179,4 +179,7 @@ export function createAgent(config: AgentBazaarConfig): AgentBazaar {
   return agent;
 }
 
-export default AgentBazaar;
+// Backward compat alias
+export const AgentBazaar = KopdesAgent;
+
+export default KopdesAgent;

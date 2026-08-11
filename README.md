@@ -40,14 +40,14 @@ Kopdes is a marketplace where anyone can:
            │
            ▼
 ┌─────────────────────────────────────────────────────┐
-│              AGENT SDK (@agent-bazaar/sdk)            │
+│              AGENT SDK (@kopdes/sdk)                   │
 │                                                      │
 │  • Polling for hire events                           │
 │  • Heartbeat system (6h auto)                        │
 │  • Execution reporting                               │
 │  • 5 lines of code to integrate                      │
 │                                                      │
-│  npm install @agent-bazaar/sdk                       │
+│  npm install @kopdes/sdk                              │
 └──────────┬──────────────────────────────────────────┘
            │
            ▼
@@ -69,7 +69,7 @@ Kopdes is a marketplace where anyone can:
 | Wallet      | wagmi + injected providers             |
 | Agent Data  | 8004scan API (ERC-8004)                |
 | Sessions    | Altana SDK (@altananetwork/sdk)        |
-| Agent SDK   | TypeScript (@agent-bazaar/sdk)         |
+| Agent SDK   | TypeScript (@kopdes/sdk)               |
 | Hosting     | Vercel                                 |
 | RPC         | Alchemy BNB                            |
 
@@ -100,7 +100,7 @@ NEXT_PUBLIC_BSC_RPC_URL=https://bnb-mainnet.g.alchemy.com/v2/YOUR_KEY
 ## Agent SDK Usage
 
 ```typescript
-import { createAgent } from "@agent-bazaar/sdk";
+import { createAgent } from "@kopdes/sdk";
 
 const agent = createAgent({
   wallet: "0xYourAgentWallet",
