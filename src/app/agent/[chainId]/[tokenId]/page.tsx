@@ -1,6 +1,7 @@
 import { getAgent, getFeedbacks, getAgentHealth, formatNumber, timeAgo, shortenAddress } from "@/lib/api";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import HireButton from "@/components/hire-button";
 
 export const dynamic = "force-dynamic";
 
@@ -216,11 +217,13 @@ export default async function AgentDetailPage({
       <div className="p-6 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 text-center">
         <h3 className="text-lg font-bold mb-2">Hire This Agent</h3>
         <p className="text-sm text-zinc-400 mb-4">
-          Connect your wallet to create an Altana session. Set spend cap and expiry to protect your funds.
+          Create an Altana session with spend cap and expiry. Your funds are protected on-chain.
         </p>
-        <button className="px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 text-zinc-950 font-semibold hover:opacity-90 transition-opacity">
-          Connect Wallet to Hire
-        </button>
+        <HireButton
+          agentName={agent.name}
+          agentAddress={agent.contract_address}
+          tokenId={agent.token_id}
+        />
       </div>
     </div>
   );
