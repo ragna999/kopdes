@@ -1,0 +1,26 @@
+{
+  "name": "@agent-bazaar/sdk",
+  "version": "0.1.0",
+  "description": "SDK for AI agents to receive hire notifications from Kopdes marketplace",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["agent", "bazaar", "erc-8004", "bsc", "marketplace", "ai"],
+  "license": "MIT",
+  "dependencies": {
+    "eventemitter3": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

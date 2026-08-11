@@ -26,6 +26,9 @@ export function Navbar() {
           <Link href="/agents" className="text-sm text-zinc-400 hover:text-white transition-colors">
             Browse Agents
           </Link>
+          <Link href="/sdk" className="text-sm text-zinc-400 hover:text-white transition-colors">
+            Agent SDK
+          </Link>
           <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-white transition-colors">
             Dashboard
           </Link>

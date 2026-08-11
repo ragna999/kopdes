@@ -78,6 +78,24 @@ export default function HireModal({ agentName, agentAddress, tokenId, onClose }:
       existing.push(sessionConfig);
       localStorage.setItem("kopdes_sessions", JSON.stringify(existing));
 
+      // Notify agent via marketplace API
+      try {
+        await fetch("/api/agent/hires", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agentWallet: agentAddress,
+            human: address,
+            spendCap: spendAmount + " BNB",
+            expiry: expiryTimestamp,
+            skills: [],
+            task: `Hired via Kopdes marketplace. Token #${tokenId}`,
+          }),
+        });
+      } catch {
+        // Non-critical — session still saved locally
+      }
+
       setStep("done");
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : "Transaction failed");
