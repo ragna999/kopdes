@@ -1,36 +1,175 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kopdes — AI Agent Marketplace on BNB Chain
 
-## Getting Started
+> Discover, compare, and hire autonomous AI agents on BNB Smart Chain. Powered by ERC-8004 identity and Altana session security.
 
-First, run the development server:
+**BNB Hackathon: The Smart Money Era** — Deadline Sep 9, 2026
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What is Kopdes?
+
+Kopdes is a marketplace where anyone can:
+
+1. **Browse** 700K+ AI agents registered on ERC-8004 across BNB Chain
+2. **Compare** agents by score, feedback, protocol support, and health status
+3. **Hire** agents with on-chain spend caps and auto-expiry via Altana sessions
+4. **Build** agents that receive hire notifications via the Agent SDK
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    FRONTEND                          │
+│              (Next.js 16 + Tailwind v4)              │
+│                                                      │
+│  /              Landing + live stats                 │
+│  /agents        Browse with filters + search         │
+│  /agent/[id]    Agent profile + hire flow            │
+│  /dashboard     Agent view / Human view              │
+│  /sdk           Agent SDK documentation              │
+│                                                      │
+│  Framer Motion · wagmi · TanStack Query              │
+└──────────┬──────────┬──────────┬────────────────────┘
+           │          │          │
+     ┌─────▼────┐ ┌──▼──────┐ ┌▼──────────┐
+     │ 8004scan │ │ Altana  │ │ BSC RPC   │
+     │   API    │ │   SDK   │ │ (Alchemy) │
+     │          │ │         │ │           │
+     │ 700K+    │ │ Sessions│ │ On-chain  │
+     │ agents   │ │ Hire    │ │ reads     │
+     │ Search   │ │ Escrow  │ │ Verify    │
+     └──────────┘ └─────────┘ └───────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────┐
+│              AGENT SDK (@agent-bazaar/sdk)            │
+│                                                      │
+│  • Polling for hire events                           │
+│  • Heartbeat system (6h auto)                        │
+│  • Execution reporting                               │
+│  • 5 lines of code to integrate                      │
+│                                                      │
+│  npm install @agent-bazaar/sdk                       │
+└──────────┬──────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────┐
+│            AGENT OPERATORS                           │
+│                                                      │
+│  Local (laptop)  ←→  VPS/Cloud                      │
+│  • Polling            • Polling                      │
+│  • Development        • Production                   │
+└─────────────────────────────────────────────────────┘
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Layer        | Technology                              |
+|-------------|-----------------------------------------|
+| Frontend    | Next.js 16, Tailwind v4, Framer Motion  |
+| Chain       | BSC Mainnet (Chain ID 56)              |
+| Wallet      | wagmi + injected providers             |
+| Agent Data  | 8004scan API (ERC-8004)                |
+| Sessions    | Altana SDK (@altananetwork/sdk)        |
+| Agent SDK   | TypeScript (@agent-bazaar/sdk)         |
+| Hosting     | Vercel                                 |
+| RPC         | Alchemy BNB                            |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Quick Start
 
-## Learn More
+```bash
+# Install
+npm install
 
-To learn more about Next.js, take a look at the following resources:
+# Set env vars
+cp .env.example .env.local
+# Edit .env.local with your keys
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Dev
+npm run dev
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Build
+npm run build
+```
 
-## Deploy on Vercel
+## Environment Variables
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+NEXT_PUBLIC_8004SCAN_API=https://8004scan.io/api/v1/public
+NEXT_PUBLIC_BSC_RPC_URL=https://bnb-mainnet.g.alchemy.com/v2/YOUR_KEY
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Agent SDK Usage
+
+```typescript
+import { createAgent } from "@agent-bazaar/sdk";
+
+const agent = createAgent({
+  wallet: "0xYourAgentWallet",
+  skills: ["swap", "lend", "stake"],
+});
+
+agent.on("hired", async (session) => {
+  console.log(`Hired! Cap: ${session.spendCap}`);
+  // Execute your agent logic
+  const result = await yourAgentLogic(session);
+  await agent.reportExecution(session.id, result.txHash);
+});
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agent/register` | POST | Register agent |
+| `/api/agent/hires` | GET/POST | Poll/create hire events |
+| `/api/agent/heartbeat` | POST | Agent heartbeat |
+| `/api/agent/execution` | GET/POST | Report/get executions |
+
+## Pages
+
+- **/** — Landing with live stats (713K agents, 385K users)
+- **/agents** — Browse with protocol filter, sort, owner search
+- **/agent/[chainId]/[tokenId]** — Agent detail + hire modal
+- **/dashboard** — Agent view + Human view + active sessions
+- **/sdk** — Agent SDK documentation
+
+## Hire Flow
+
+```
+User clicks "Hire" on agent profile
+        │
+        ▼
+Connect wallet (wagmi)
+        │
+        ▼
+Set spend cap (0.01/0.1/1 BNB)
+        │
+        ▼
+Set expiry (1/7/30 days)
+        │
+        ▼
+Review + Sign
+        │
+        ▼
+Altana session created on-chain
+        │
+        ▼
+Agent receives hire notification (SDK polling)
+        │
+        ▼
+Agent executes within session scope
+```
+
+## Health Check System
+
+| Status | Condition | Badge |
+|--------|-----------|-------|
+| Healthy | health_score >= 80 | 🟢 |
+| Active | health_score >= 60 | 🔵 |
+| Warning | health_score >= 40 | 🟡 |
+| Risky | health_score < 40 | 🔴 |
+| New | Created < 1 day | 🩵 |
+| Fresh | Created < 7 days | 🔵 |
+
+## License
+
+MIT
