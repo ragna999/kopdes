@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Registered agents on Kopdes (seller side)
-// In production: use a database. For hackathon: Vercel KV or in-memory with file backup.
 interface RegisteredAgent {
   wallet: string;
   skills: string[];
@@ -12,10 +10,26 @@ interface RegisteredAgent {
   status: "online" | "stale" | "offline";
 }
 
-// In-memory store (persists within same serverless instance)
-const registeredAgents = new Map<string, RegisteredAgent>();
+// Singleton store — persists within same serverless instance
+// globalThis survives across hot reloads in dev, persists within warm instance in prod
+const g = globalThis as unknown as Record<string, Map<string, RegisteredAgent>>;
+const AGENTS_KEY = "kopdes_registered_agents";
 
-// POST — Register agent on Kopdes
+function getStore(): Map<string, RegisteredAgent> {
+  if (!g[AGENTS_KEY]) {
+    g[AGENTS_KEY] = new Map<string, RegisteredAgent>();
+  }
+  return g[AGENTS_KEY];
+}
+
+function updateStatus(agent: RegisteredAgent): RegisteredAgent {
+  const now = Date.now();
+  const elapsed = now - agent.lastHeartbeat;
+  if (elapsed < 10 * 60 * 1000) return { ...agent, status: "online" };
+  if (elapsed < 60 * 60 * 1000) return { ...agent, status: "stale" };
+  return { ...agent, status: "offline" };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -25,15 +39,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
     }
 
+    const store = getStore();
     const key = wallet.toLowerCase();
     const now = timestamp || Date.now();
 
-    registeredAgents.set(key, {
+    store.set(key, {
       wallet,
       skills: skills || [],
       name,
       description,
-      registeredAt: registeredAgents.get(key)?.registeredAt || now,
+      registeredAt: store.get(key)?.registeredAt || now,
       lastHeartbeat: now,
       status: "online",
     });
@@ -42,31 +57,30 @@ export async function POST(req: NextRequest) {
       success: true,
       message: "Agent registered on Kopdes",
       hirable: true,
+      totalRegistered: store.size,
     });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
 
-// GET — List registered agents or check if specific agent is registered
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get("wallet");
   const skills = req.nextUrl.searchParams.get("skills");
   const limit = parseInt(req.nextUrl.searchParams.get("limit") || "50");
 
-  // Check single agent
+  const store = getStore();
+
   if (wallet) {
-    const agent = registeredAgents.get(wallet.toLowerCase());
+    const agent = store.get(wallet.toLowerCase());
     return NextResponse.json({
       registered: !!agent,
-      agent: agent || null,
+      agent: agent ? updateStatus(agent) : null,
     });
   }
 
-  // List all registered agents
-  let agents = Array.from(registeredAgents.values());
+  let agents = Array.from(store.values()).map(updateStatus);
 
-  // Filter by skill
   if (skills) {
     const skillFilter = skills.split(",").map((s) => s.trim().toLowerCase());
     agents = agents.filter((a) =>
@@ -74,7 +88,6 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Sort by last heartbeat (most recent first)
   agents.sort((a, b) => b.lastHeartbeat - a.lastHeartbeat);
 
   return NextResponse.json({
