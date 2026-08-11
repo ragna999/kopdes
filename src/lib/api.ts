@@ -24,6 +24,15 @@ export interface Agent {
   updated_at: string;
 }
 
+export interface Feedback {
+  id: string;
+  agent_id: string;
+  score: number;
+  comment: string;
+  created_at: string;
+  user_address?: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -52,6 +61,20 @@ export interface PlatformStats {
   }>;
 }
 
+export type SortField = "created_at" | "stars" | "name" | "token_id" | "total_score";
+export type SortOrder = "asc" | "desc";
+export type Protocol = "MCP" | "A2A" | "OASF" | "Web" | "Email";
+
+export interface AgentFilters {
+  search?: string;
+  protocol?: Protocol;
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
+  ownerAddress?: string;
+  page?: number;
+  limit?: number;
+}
+
 async function fetchApi<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     cache: "no-store",
@@ -60,22 +83,27 @@ async function fetchApi<T>(path: string): Promise<T> {
   return res.json();
 }
 
-export async function getAgents(chainId = 56, limit = 20, page = 1) {
-  return fetchApi<ApiResponse<Agent[]>>(
-    `/agents?chain_id=${chainId}&limit=${limit}&page=${page}`
-  );
+export async function getAgents(filters: AgentFilters = {}) {
+  const params = new URLSearchParams();
+  params.set("chain_id", "56");
+  if (filters.search) params.set("search", filters.search);
+  if (filters.protocol) params.set("protocol", filters.protocol);
+  if (filters.sortBy) params.set("sortBy", filters.sortBy);
+  if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
+  if (filters.ownerAddress) params.set("ownerAddress", filters.ownerAddress);
+  params.set("page", String(filters.page || 1));
+  params.set("limit", String(filters.limit || 20));
+  return fetchApi<ApiResponse<Agent[]>>(`/agents?${params.toString()}`);
 }
 
 export async function searchAgents(query: string, limit = 20) {
   return fetchApi<ApiResponse<Agent[]>>(
-    `/agents/search?q=${encodeURIComponent(query)}&limit=${limit}`
+    `/agents/search?q=${encodeURIComponent(query)}&limit=${limit}&chainId=56`
   );
 }
 
 export async function getAgent(chainId: number, tokenId: string) {
-  return fetchApi<ApiResponse<Agent>>(
-    `/agents/${chainId}/${tokenId}`
-  );
+  return fetchApi<ApiResponse<Agent>>(`/agents/${chainId}/${tokenId}`);
 }
 
 export async function getStats() {
@@ -83,32 +111,44 @@ export async function getStats() {
 }
 
 export async function getAgentsByOwner(address: string) {
-  return fetchApi<ApiResponse<Agent[]>>(
-    `/accounts/${address}/agents`
+  return fetchApi<ApiResponse<Agent[]>>(`/accounts/${address}/agents`);
+}
+
+export async function getFeedbacks(chainId: number, tokenId: string, limit = 10) {
+  return fetchApi<ApiResponse<Feedback[]>>(
+    `/feedbacks?chainId=${chainId}&tokenId=${tokenId}&limit=${limit}`
   );
 }
 
-export function getAgentStatus(agent: Agent): {
+export function getAgentHealth(agent: Agent): {
   label: string;
   color: string;
   bg: string;
+  level: number;
 } {
-  if (!agent.health_score && agent.total_feedbacks === 0) {
-    return { label: "New", color: "text-blue-400", bg: "bg-blue-400/10" };
+  const score = agent.health_score;
+  const feedbacks = agent.total_feedbacks;
+  const avg = agent.average_score;
+
+  if (score !== null) {
+    if (score >= 80) return { label: "Healthy", color: "text-emerald-400", bg: "bg-emerald-400/10", level: 4 };
+    if (score >= 60) return { label: "Active", color: "text-blue-400", bg: "bg-blue-400/10", level: 3 };
+    if (score >= 40) return { label: "Warning", color: "text-yellow-400", bg: "bg-yellow-400/10", level: 2 };
+    return { label: "Risky", color: "text-red-400", bg: "bg-red-400/10", level: 1 };
   }
-  if (agent.health_score !== null && agent.health_score >= 80) {
-    return { label: "Healthy", color: "text-emerald-400", bg: "bg-emerald-400/10" };
-  }
-  if (agent.health_score !== null && agent.health_score >= 50) {
-    return { label: "Warning", color: "text-yellow-400", bg: "bg-yellow-400/10" };
-  }
-  if (agent.health_score !== null && agent.health_score < 50) {
-    return { label: "Risky", color: "text-red-400", bg: "bg-red-400/10" };
-  }
-  if (agent.average_score >= 70) {
-    return { label: "Active", color: "text-emerald-400", bg: "bg-emerald-400/10" };
-  }
-  return { label: "Unknown", color: "text-zinc-400", bg: "bg-zinc-400/10" };
+
+  if (feedbacks > 0 && avg >= 70) return { label: "Active", color: "text-blue-400", bg: "bg-blue-400/10", level: 3 };
+  if (feedbacks > 0 && avg >= 40) return { label: "Warning", color: "text-yellow-400", bg: "bg-yellow-400/10", level: 2 };
+  if (feedbacks > 0) return { label: "Risky", color: "text-red-400", bg: "bg-red-400/10", level: 1 };
+
+  // Time-based check
+  const created = new Date(agent.created_at);
+  const now = new Date();
+  const daysSince = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSince < 1) return { label: "New", color: "text-cyan-400", bg: "bg-cyan-400/10", level: 0 };
+  if (daysSince < 7) return { label: "Fresh", color: "text-blue-400", bg: "bg-blue-400/10", level: 2 };
+
+  return { label: "Unknown", color: "text-zinc-400", bg: "bg-zinc-400/10", level: 0 };
 }
 
 export function formatNumber(n: number): string {
@@ -126,4 +166,8 @@ export function timeAgo(dateStr: string): string {
   if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
   if (diff < 604800) return Math.floor(diff / 86400) + "d ago";
   return date.toLocaleDateString();
+}
+
+export function shortenAddress(addr: string): string {
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }

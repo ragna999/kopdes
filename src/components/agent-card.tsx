@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Agent, getAgentStatus, formatNumber, timeAgo } from "@/lib/api";
-import Image from "next/image";
+import { Agent, getAgentHealth, formatNumber, timeAgo } from "@/lib/api";
 
 export function AgentCard({ agent }: { agent: Agent }) {
-  const status = getAgentStatus(agent);
+  const health = getAgentHealth(agent);
 
   return (
     <Link
@@ -44,8 +43,8 @@ export function AgentCard({ agent }: { agent: Agent }) {
             {agent.description || "No description"}
           </p>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full ${status.bg} ${status.color} font-medium`}>
-              {status.label}
+            <span className={`text-[10px] px-2 py-0.5 rounded-full ${health.bg} ${health.color} font-medium`}>
+              {health.label}
             </span>
             {agent.supported_protocols?.map((p) => (
               <span key={p} className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
@@ -62,8 +61,14 @@ export function AgentCard({ agent }: { agent: Agent }) {
       </div>
       <div className="mt-4 pt-3 border-t border-zinc-800/50 flex items-center justify-between text-xs text-zinc-500">
         <div className="flex items-center gap-4">
-          <span>Score: <span className="text-zinc-300">{agent.average_score || 0}</span></span>
+          <span>
+            Score:{" "}
+            <span className={agent.average_score >= 70 ? "text-emerald-400" : agent.average_score >= 40 ? "text-yellow-400" : "text-zinc-300"}>
+              {agent.average_score || 0}
+            </span>
+          </span>
           <span>Feedbacks: <span className="text-zinc-300">{formatNumber(agent.total_feedbacks)}</span></span>
+          {agent.star_count > 0 && <span>⭐ {agent.star_count}</span>}
         </div>
         <span>{timeAgo(agent.updated_at)}</span>
       </div>

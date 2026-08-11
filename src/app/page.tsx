@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const [statsRes, agentsRes] = await Promise.all([
     getStats().catch(() => null),
-    getAgents(56, 6).catch(() => null),
+    getAgents({ limit: 6, sortBy: "created_at", sortOrder: "desc" }).catch(() => null),
   ]);
 
   const stats = statsRes?.data;
