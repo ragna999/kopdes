@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getAgents, getStats, formatNumber } from "@/lib/api";
 import { AgentCard } from "@/components/agent-card";
 import { AnimatedHero } from "@/components/animated-hero";
+import { ReadyToHireSection } from "@/components/ready-to-hire";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Ready to Hire */}
+      <ReadyToHireSection />
 
       {/* Stats */}
       {/* Featured Agents */}
