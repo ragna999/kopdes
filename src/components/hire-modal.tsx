@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAccount, useWalletClient } from "wagmi";
 import { parseEther, parseUnits } from "viem";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface HireModalProps {
   agentName: string;
@@ -123,8 +124,20 @@ export default function HireModal({ agentName, agentAddress, tokenId, onClose }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6"
+        >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold">Hire Agent</h2>
@@ -309,7 +322,8 @@ export default function HireModal({ agentName, agentAddress, tokenId, onClose }:
             </button>
           </div>
         )}
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
