@@ -13,6 +13,7 @@ import {
   formatNumber,
 } from "@/lib/api";
 import { AgentCard } from "@/components/agent-card";
+import { KopdesAgent } from "@/lib/kopdes-agents";
 
 const PROTOCOLS: (Protocol | "All")[] = ["All", "MCP", "A2A", "OASF", "Web", "Email"];
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
@@ -31,6 +32,10 @@ export default function AgentsContent() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
+  // Kopdes registered agents
+  const [kopdesAgents, setKopdesAgents] = useState<Map<string, KopdesAgent>>(new Map());
+  const [hirableOnly, setHirableOnly] = useState(false);
+
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [protocol, setProtocol] = useState<Protocol | "All">(
     (searchParams.get("protocol") as Protocol) || "All"
@@ -41,7 +46,24 @@ export default function AgentsContent() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(
     (searchParams.get("order") as SortOrder) || "desc"
   );
-  const [ownerSearch, setOwnerSearch] = useState(searchParams.get("owner") || "");
+
+  // Fetch registered Kopdes agents
+  useEffect(() => {
+    fetch("/api/agent/register?limit=500")
+      .then((r) => r.json())
+      .then((data) => {
+        const map = new Map<string, KopdesAgent>();
+        (data.agents || []).forEach((a: KopdesAgent) => {
+          map.set(a.wallet.toLowerCase(), a);
+        });
+        setKopdesAgents(map);
+      })
+      .catch(console.error);
+  }, []);
+
+  const isHirable = (agent: Agent) =>
+    kopdesAgents.has(agent.owner_address?.toLowerCase() || "") ||
+    kopdesAgents.has(agent.contract_address?.toLowerCase() || "");
 
   const fetchAgents = useCallback(
     async (p: number, append = false) => {
@@ -62,14 +84,19 @@ export default function AgentsContent() {
           if (protocol !== "All") filters.protocol = protocol;
           if (search.trim().startsWith("0x")) {
             filters.ownerAddress = search.trim();
-          } else if (ownerSearch.trim().startsWith("0x")) {
-            filters.ownerAddress = ownerSearch.trim();
           }
           res = await getAgents(filters);
         }
 
         if (res.success) {
-          setAgents(append ? [...agents, ...res.data] : res.data);
+          let newData = append ? [...agents, ...res.data] : res.data;
+
+          // Filter hirable only
+          if (hirableOnly) {
+            newData = newData.filter((a) => isHirable(a));
+          }
+
+          setAgents(newData);
           setHasMore(res.meta?.pagination?.hasMore ?? res.data.length === 20);
           setTotal(res.meta?.pagination?.total || res.data.length);
         }
@@ -78,13 +105,13 @@ export default function AgentsContent() {
       }
       setLoading(false);
     },
-    [search, protocol, sortBy, sortOrder, ownerSearch, agents]
+    [search, protocol, sortBy, sortOrder, hirableOnly, kopdesAgents, agents]
   );
 
   useEffect(() => {
     setPage(1);
     fetchAgents(1);
-  }, [protocol, sortBy, sortOrder]);
+  }, [protocol, sortBy, sortOrder, hirableOnly]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,12 +125,19 @@ export default function AgentsContent() {
     fetchAgents(nextPage, true);
   };
 
+  const hirableCount = Array.from(kopdesAgents.values()).length;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Browse Agents</h1>
         <p className="text-zinc-400">
           {total > 0 ? `${total.toLocaleString()} agents on BNB Chain` : "Loading..."}
+          {hirableCount > 0 && (
+            <span className="text-yellow-400 ml-2">
+              · {hirableCount} hirable on Kopdes
+            </span>
+          )}
         </p>
       </div>
 
@@ -141,6 +175,21 @@ export default function AgentsContent() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
+        {/* Hirable toggle */}
+        <button
+          onClick={() => setHirableOnly(!hirableOnly)}
+          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+            hirableOnly
+              ? "border-yellow-400/50 bg-yellow-400/10 text-yellow-400"
+              : "border-zinc-800 text-zinc-400 hover:border-zinc-700"
+          }`}
+        >
+          Hirable Only
+        </button>
+
+        <div className="w-px h-6 bg-zinc-800" />
+
+        {/* Protocol */}
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-zinc-500 mr-1">Protocol:</span>
           {PROTOCOLS.map((p) => (
@@ -160,6 +209,7 @@ export default function AgentsContent() {
 
         <div className="w-px h-6 bg-zinc-800 hidden sm:block" />
 
+        {/* Sort */}
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-zinc-500 mr-1">Sort:</span>
           {SORT_OPTIONS.map((opt) => (
@@ -193,13 +243,25 @@ export default function AgentsContent() {
         </div>
       ) : agents.length === 0 ? (
         <div className="text-center py-20 text-zinc-500">
-          No agents found. Try adjusting your filters.
+          {hirableOnly ? (
+            <>
+              <p className="mb-4">No hirable agents found.</p>
+              <p className="text-sm text-zinc-600">
+                Agents need to register on Kopdes to appear here.{" "}
+                <button onClick={() => setHirableOnly(false)} className="text-yellow-400 hover:underline">
+                  Show all agents
+                </button>
+              </p>
+            </>
+          ) : (
+            "No agents found. Try adjusting your filters."
+          )}
         </div>
       ) : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} />
+              <AgentCard key={agent.id} agent={agent} isHirable={isHirable(agent)} />
             ))}
           </div>
 

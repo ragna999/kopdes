@@ -4,7 +4,12 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Agent, getAgentHealth, formatNumber, timeAgo } from "@/lib/api";
 
-export function AgentCard({ agent }: { agent: Agent }) {
+interface AgentCardProps {
+  agent: Agent;
+  isHirable?: boolean;
+}
+
+export function AgentCard({ agent, isHirable }: AgentCardProps) {
   const health = getAgentHealth(agent);
 
   return (
@@ -50,6 +55,11 @@ export function AgentCard({ agent }: { agent: Agent }) {
               {agent.description || "No description"}
             </p>
             <div className="flex items-center gap-2 flex-wrap">
+              {isHirable && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-400 font-medium border border-yellow-400/20">
+                  Hirable
+                </span>
+              )}
               <span className={`text-[10px] px-2 py-0.5 rounded-full ${health.bg} ${health.color} font-medium`}>
                 {health.label}
               </span>

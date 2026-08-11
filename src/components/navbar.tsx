@@ -31,8 +31,11 @@ export function Navbar() {
           <Link href="/agents" className="text-sm text-zinc-400 hover:text-white transition-colors">
             Browse Agents
           </Link>
+          <Link href="/register" className="text-sm text-zinc-400 hover:text-white transition-colors">
+            Sell
+          </Link>
           <Link href="/sdk" className="text-sm text-zinc-400 hover:text-white transition-colors">
-            Agent SDK
+            SDK
           </Link>
           <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-white transition-colors">
             Dashboard
@@ -84,6 +87,13 @@ export function Navbar() {
               className="block text-sm text-zinc-300 hover:text-yellow-400 py-2"
             >
               Browse Agents
+            </Link>
+            <Link
+              href="/register"
+              onClick={() => setMobileOpen(false)}
+              className="block text-sm text-zinc-300 hover:text-yellow-400 py-2"
+            >
+              Become a Seller
             </Link>
             <Link
               href="/sdk"

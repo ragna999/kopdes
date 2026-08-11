@@ -1,49 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// In-memory store (demo — production would use a database)
-const agentRegistry = new Map<string, {
+// Registered agents on Kopdes (seller side)
+// In production: use a database. For hackathon: Vercel KV or in-memory with file backup.
+interface RegisteredAgent {
   wallet: string;
   skills: string[];
+  name?: string;
+  description?: string;
+  registeredAt: number;
   lastHeartbeat: number;
-  connectedAt: number;
-}>();
+  status: "online" | "stale" | "offline";
+}
 
-const hireQueue = new Map<string, Array<{
-  id: string;
-  human: string;
-  spendCap: string;
-  expiry: number;
-  skills: string[];
-  task?: string;
-  hiredAt: number;
-}>>();
+// In-memory store (persists within same serverless instance)
+const registeredAgents = new Map<string, RegisteredAgent>();
 
-const executions: Array<{
-  wallet: string;
-  sessionId: string;
-  txHash: string;
-  result?: string;
-  timestamp: number;
-}> = [];
-
+// POST — Register agent on Kopdes
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { wallet, skills, timestamp } = body;
+    const { wallet, skills, name, description, timestamp } = body;
 
     if (!wallet) {
       return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
     }
 
-    agentRegistry.set(wallet.toLowerCase(), {
+    const key = wallet.toLowerCase();
+    const now = timestamp || Date.now();
+
+    registeredAgents.set(key, {
       wallet,
       skills: skills || [],
-      lastHeartbeat: timestamp || Date.now(),
-      connectedAt: Date.now(),
+      name,
+      description,
+      registeredAt: registeredAgents.get(key)?.registeredAt || now,
+      lastHeartbeat: now,
+      status: "online",
     });
 
-    return NextResponse.json({ success: true, message: "Agent registered" });
+    return NextResponse.json({
+      success: true,
+      message: "Agent registered on Kopdes",
+      hirable: true,
+    });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+}
+
+// GET — List registered agents or check if specific agent is registered
+export async function GET(req: NextRequest) {
+  const wallet = req.nextUrl.searchParams.get("wallet");
+  const skills = req.nextUrl.searchParams.get("skills");
+  const limit = parseInt(req.nextUrl.searchParams.get("limit") || "50");
+
+  // Check single agent
+  if (wallet) {
+    const agent = registeredAgents.get(wallet.toLowerCase());
+    return NextResponse.json({
+      registered: !!agent,
+      agent: agent || null,
+    });
+  }
+
+  // List all registered agents
+  let agents = Array.from(registeredAgents.values());
+
+  // Filter by skill
+  if (skills) {
+    const skillFilter = skills.split(",").map((s) => s.trim().toLowerCase());
+    agents = agents.filter((a) =>
+      a.skills.some((s) => skillFilter.includes(s.toLowerCase()))
+    );
+  }
+
+  // Sort by last heartbeat (most recent first)
+  agents.sort((a, b) => b.lastHeartbeat - a.lastHeartbeat);
+
+  return NextResponse.json({
+    total: agents.length,
+    agents: agents.slice(0, limit),
+  });
 }
