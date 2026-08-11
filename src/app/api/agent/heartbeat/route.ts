@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const heartbeats = new Map<string, number>();
+import { getRedis, KEYS } from "@/lib/redis";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +10,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
     }
 
-    heartbeats.set(wallet.toLowerCase(), timestamp || Date.now());
+    const r = getRedis();
+    if (r) {
+      await r.set(KEYS.heartbeat(wallet), String(timestamp || Date.now()));
+    }
 
     return NextResponse.json({ success: true });
   } catch {

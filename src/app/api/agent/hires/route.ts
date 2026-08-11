@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRedis, KEYS } from "@/lib/redis";
 
-// Shared store (demo)
-const hireQueue = new Map<string, Array<{
+interface Hire {
   id: string;
   human: string;
   spendCap: string;
@@ -9,7 +9,15 @@ const hireQueue = new Map<string, Array<{
   skills: string[];
   task?: string;
   hiredAt: number;
-}>>();
+}
+
+// In-memory fallback
+const g = globalThis as unknown as Record<string, Map<string, Hire[]>>;
+const HIRES_KEY = "kopdes_hires";
+function getMemStore(): Map<string, Hire[]> {
+  if (!g[HIRES_KEY]) g[HIRES_KEY] = new Map();
+  return g[HIRES_KEY];
+}
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get("wallet");
@@ -18,10 +26,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing wallet param" }, { status: 400 });
   }
 
-  const hires = hireQueue.get(wallet.toLowerCase()) || [];
+  const r = getRedis();
+  let hires: Hire[] = [];
 
-  // Clear after fetching (consume once)
-  hireQueue.delete(wallet.toLowerCase());
+  if (r) {
+    const data = await r.get<Hire[]>(KEYS.hires(wallet));
+    hires = data || [];
+    // Clear after fetching
+    if (hires.length > 0) await r.del(KEYS.hires(wallet));
+  } else {
+    const store = getMemStore();
+    hires = store.get(wallet.toLowerCase()) || [];
+    store.delete(wallet.toLowerCase());
+  }
 
   return NextResponse.json({ hires });
 }
@@ -35,10 +52,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const key = agentWallet.toLowerCase();
-    if (!hireQueue.has(key)) hireQueue.set(key, []);
-
-    const hire = {
+    const hire: Hire = {
       id: `hire_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       human,
       spendCap: spendCap || "0",
@@ -48,7 +62,17 @@ export async function POST(req: NextRequest) {
       hiredAt: Date.now(),
     };
 
-    hireQueue.get(key)!.push(hire);
+    const r = getRedis();
+    if (r) {
+      const existing = (await r.get<Hire[]>(KEYS.hires(agentWallet))) || [];
+      existing.push(hire);
+      await r.set(KEYS.hires(agentWallet), JSON.stringify(existing));
+    } else {
+      const store = getMemStore();
+      const key = agentWallet.toLowerCase();
+      if (!store.has(key)) store.set(key, []);
+      store.get(key)!.push(hire);
+    }
 
     return NextResponse.json({ success: true, hireId: hire.id });
   } catch {

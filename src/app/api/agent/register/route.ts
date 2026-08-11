@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRedis, KEYS } from "@/lib/redis";
 
 interface RegisteredAgent {
   wallet: string;
@@ -10,15 +11,11 @@ interface RegisteredAgent {
   status: "online" | "stale" | "offline";
 }
 
-// Singleton store — persists within same serverless instance
-// globalThis survives across hot reloads in dev, persists within warm instance in prod
+// In-memory fallback
 const g = globalThis as unknown as Record<string, Map<string, RegisteredAgent>>;
 const AGENTS_KEY = "kopdes_registered_agents";
-
-function getStore(): Map<string, RegisteredAgent> {
-  if (!g[AGENTS_KEY]) {
-    g[AGENTS_KEY] = new Map<string, RegisteredAgent>();
-  }
+function getMemStore(): Map<string, RegisteredAgent> {
+  if (!g[AGENTS_KEY]) g[AGENTS_KEY] = new Map();
   return g[AGENTS_KEY];
 }
 
@@ -30,6 +27,48 @@ function updateStatus(agent: RegisteredAgent): RegisteredAgent {
   return { ...agent, status: "offline" };
 }
 
+async function saveAgent(agent: RegisteredAgent) {
+  const r = getRedis();
+  if (r) {
+    const key = KEYS.agent(agent.wallet);
+    await r.set(key, JSON.stringify(agent));
+    await r.sadd(KEYS.agents(), agent.wallet.toLowerCase());
+  } else {
+    getMemStore().set(agent.wallet.toLowerCase(), agent);
+  }
+}
+
+async function getAgent(wallet: string): Promise<RegisteredAgent | null> {
+  const r = getRedis();
+  if (r) {
+    const data = await r.get<string>(KEYS.agent(wallet));
+    if (typeof data === "string") return JSON.parse(data);
+    return data as RegisteredAgent | null;
+  }
+  return getMemStore().get(wallet.toLowerCase()) || null;
+}
+
+async function getAllAgents(): Promise<RegisteredAgent[]> {
+  const r = getRedis();
+  if (r) {
+    const members = await r.smembers<string[]>(KEYS.agents());
+    if (!members || members.length === 0) return [];
+    const pipeline = r.pipeline();
+    for (const w of members) {
+      pipeline.get(KEYS.agent(w));
+    }
+    const results = await pipeline.exec<(string | null)[]>();
+    return results
+      .map((d) => {
+        if (!d) return null;
+        if (typeof d === "string") return JSON.parse(d) as RegisteredAgent;
+        return d as RegisteredAgent;
+      })
+      .filter(Boolean) as RegisteredAgent[];
+  }
+  return Array.from(getMemStore().values());
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -39,27 +78,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
     }
 
-    const store = getStore();
-    const key = wallet.toLowerCase();
     const now = timestamp || Date.now();
+    const existing = await getAgent(wallet);
 
-    store.set(key, {
+    const agent: RegisteredAgent = {
       wallet,
       skills: skills || [],
       name,
       description,
-      registeredAt: store.get(key)?.registeredAt || now,
+      registeredAt: existing?.registeredAt || now,
       lastHeartbeat: now,
       status: "online",
-    });
+    };
 
+    await saveAgent(agent);
+
+    const r = getRedis();
     return NextResponse.json({
       success: true,
       message: "Agent registered on Kopdes",
       hirable: true,
-      totalRegistered: store.size,
+      storage: r ? "redis" : "memory",
     });
-  } catch {
+  } catch (e) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
@@ -69,17 +110,15 @@ export async function GET(req: NextRequest) {
   const skills = req.nextUrl.searchParams.get("skills");
   const limit = parseInt(req.nextUrl.searchParams.get("limit") || "50");
 
-  const store = getStore();
-
   if (wallet) {
-    const agent = store.get(wallet.toLowerCase());
+    const agent = await getAgent(wallet);
     return NextResponse.json({
       registered: !!agent,
       agent: agent ? updateStatus(agent) : null,
     });
   }
 
-  let agents = Array.from(store.values()).map(updateStatus);
+  let agents = (await getAllAgents()).map(updateStatus);
 
   if (skills) {
     const skillFilter = skills.split(",").map((s) => s.trim().toLowerCase());
